@@ -1,0 +1,3 @@
+RewriteEngine on
+CGIPassAuth On
+RewriteRule . index.php
