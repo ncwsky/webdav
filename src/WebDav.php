@@ -142,12 +142,12 @@ class WebDav
     public $logSize = 4194304;
     public $isLog = false;
     /**
-     * @var null|Closure ($path, $length)
+     * @var null|\Closure ($path, $length)
      * @return int
      */
     public $writeInStream = null;
     /**
-     * @var null|Closure ($list, $pathList)
+     * @var null|\Closure ($list, $pathList)
      * @return string
      */
     public $dirGetCallBack = null;
@@ -442,7 +442,7 @@ class WebDav
         foreach ($this->res_header as $name => $value) {
             header($name . ': ' . $value);
         }
-        if ($this->res_body instanceof Closure) {
+        if ($this->res_body instanceof \Closure) {
             call_user_func($this->res_body);
         } elseif ($this->res_body !== null) {
             $out = fopen('php://output', 'w');

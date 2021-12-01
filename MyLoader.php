@@ -1,6 +1,7 @@
 <?php
 //注册类的自动加载
 spl_autoload_register('MyLoader::autoload', true, true);
+
 class MyLoader
 {
     public static $classDir = []; //设置可加载的目录 ['dir'=>1,....]
@@ -25,9 +26,11 @@ class MyLoader
         if (isset(self::$classMap[$class_name])) { //优先加载类映射
             return self::load($class_name, self::$classMap[$class_name], true);
         }
+
         $class_path = strtr($class_name, '\\', '/');
         $namespace = strstr($class_name, '\\', true);
         $separator = $class_path[0] == '/' ? '' : '/';
+        if ($namespace) $namespace .= '\\';
         if ($namespace && isset(self::$namespaceMap[$namespace])) { //优先加载类映射
             return self::load($class_name, self::$rootPath . DIRECTORY_SEPARATOR . self::$namespaceMap[$namespace] . substr($class_path, strlen($namespace)) . '.php', true);
         }

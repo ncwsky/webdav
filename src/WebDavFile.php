@@ -94,8 +94,8 @@ class WebDavFile extends WebDavFileAbstract
                 } else {
                     rename($this->dir . $old, $this->dir . $new);
                 }
-            } catch (Exception $e) {
-                throw new Exception($e->getMessage(), 502);
+            } catch (\Exception $e) {
+                throw new \Exception($e->getMessage(), 502);
             }
         }
     }
@@ -104,11 +104,11 @@ class WebDavFile extends WebDavFileAbstract
     {
         if (file_exists($dest)) {
             if (!is_dir($dest)) {
-                throw new Exception('目标不是一个目录', 409);
+                throw new \Exception('目标不是一个目录', 409);
             }
 
             if (($directory = opendir($source)) === false) {
-                throw new Exception('源目录读取失败', 502);
+                throw new \Exception('源目录读取失败', 502);
             }
             try {
                 while (($file = readdir($directory)) !== false) {
@@ -127,9 +127,9 @@ class WebDavFile extends WebDavFileAbstract
                 }
                 closedir($directory);
                 @rmdir($source);
-            } catch (Exception $e) {
+            } catch (\Exception $e) {
                 closedir($directory);
-                throw new Exception($e->getMessage(), 502);
+                throw new \Exception($e->getMessage(), 502);
             }
         } else {
             $dir = dirname($dest);
@@ -144,14 +144,14 @@ class WebDavFile extends WebDavFileAbstract
     {
         if (file_exists($dest)) {
             if (!is_dir($dest)) {
-                throw new Exception('目标不是一个目录', 409);
+                throw new \Exception('目标不是一个目录', 409);
             }
         } else {
             mkdir($dest, 0777, true); //创建上级目录
         }
 
         if (($directory = opendir($source)) === false) {
-            throw new Exception('源目录读取失败', 502);
+            throw new \Exception('源目录读取失败', 502);
         }
         try {
             while (($file = readdir($directory)) !== false) {
@@ -165,9 +165,9 @@ class WebDavFile extends WebDavFileAbstract
                 }
             }
             closedir($directory);
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             closedir($directory);
-            throw new Exception($e->getMessage(), 502);
+            throw new \Exception($e->getMessage(), 502);
         }
     }
 

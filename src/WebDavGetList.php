@@ -64,7 +64,7 @@ $toByte = function($byte){
               <input class="ml-2" style="font-size:1rem;line-height: 2rem;width: 5.2rem;" name="file" type="file" placeholder="上传文件">
               <button class="btn btn-success my-2 my-sm-0" type="submit">Upload</button>
           </form>
-          <?php if(WebDav::$authUsers):?>
+          <?php if(\WebDav\WebDav::$authUsers):?>
           <a href="?auth=logout" class="fm-logout btn btn-dark ml-2 my-sm-0">Logout</a>
           <?php endif;?>
       </div>
