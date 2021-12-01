@@ -1,4 +1,29 @@
 ###如何使用
+####安装 
+    composer require myphps/webdav
+    
+    index.php
+    <?php
+    require __DIR__ . '/MyLoader.php';
+    MyLoader::$rootPath = __DIR__;
+    MyLoader::$namespaceMap = ['WebDav\\' => 'src/'];
+    
+    //require __DIR__ . '/vendor/autoload.php';
+    
+    use WebDav\WebDav;
+    use WebDav\WebDavFile;
+    
+    $file = new WebDavFile(__DIR__); //设置目录
+    $dav = new WebDav($file);
+    //$dav->prefix = '';
+    //$dav->isLog = true;
+    
+    WebDav::$authUsers = ['root'=>'123456'];
+    
+    $dav->isSend = true;
+    $dav->reqHandle();
+
+
 >Window: 右键桌面[我的电脑/此电脑] —— 映射网络驱动器 —— 粘贴上述webdav地址,点击完成——输入账号密码即可; 
 >推荐使用:[RaiDrive](https://www.raidrive.com/download), 更强大,兼容性更好.
 >首次使用需要取消上传及http限制,下载此文件后双击运行 [webdav.bat](./webdav.bat); 
