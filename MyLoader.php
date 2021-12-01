@@ -35,26 +35,27 @@ class MyLoader
             return self::load($class_name, self::$rootPath . DIRECTORY_SEPARATOR . self::$namespaceMap[$namespace] . substr($class_path, strlen($namespace)) . '.php', true);
         }
 
+        $path = self::$rootPath . $separator . $class_path;
         //命名空间类加载 仿psr4
         if ($pos = strrpos($class_path, '/')) {
-            $path = self::$rootPath . $separator . $class_path;
             if (self::load($class_name, $path . '.php')) {
                 return true;
             }
             if (self::load($class_name, $path . '.class.php')) {  //兼容处理
                 return true;
             }
+        } else {
+            //循环判断
+            foreach (self::$classDir as $path => $v) {
+                if (self::load($class_name, $path . '.php')) {
+                    return true;
+                }
+                if (self::load($class_name, $path . '.class.php')) { //兼容处理
+                    return true;
+                }
+            }
         }
 
-        //循环判断
-        foreach (self::$classDir as $path => $v) {
-            if (self::load($class_name, $path . $class_name . $class_name . '.php')) {
-                return true;
-            }
-            if (self::load($class_name, $path . $class_name . $class_name . '.class.php')) { //兼容处理
-                return true;
-            }
-        }
         return false;
     }
 
