@@ -1,10 +1,15 @@
-#!/usr/bin/env php
 <?php
-$_SERVER['SCRIPT_FILENAME'] = __FILE__; //重置运行
-define('APP_PATH', __DIR__ .'/app');
+require __DIR__ . '/MyLoader.php';
 
-require __DIR__ .'/conf.php';
-require(__DIR__ .'/../myphp/base.php');
+use WebDav\WebDav;
+use WebDav\WebDavFile;
 
-$myphp = new myphp();
-$myphp->Run();
+$file = new WebDavFile(__DIR__); //设置目录
+$dav = new WebDav($file);
+$dav->prefix = '/index/webdav';
+$dav->isLog = true;
+
+WebDav::$authUsers = ['root'=>'123456'];
+
+$dav->isSend = true;
+$dav->reqHandle();

@@ -1,5 +1,5 @@
 <?php
-
+namespace WebDav;
 /**
  * 文件存储定义
  * Interface WebDavFileInterface

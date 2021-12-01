@@ -1,5 +1,5 @@
 <?php
-
+namespace WebDav;
 /**
  * 文件存储
  * Class WebDavFile

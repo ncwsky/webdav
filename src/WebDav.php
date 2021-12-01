@@ -1,4 +1,5 @@
 <?php
+namespace WebDav;
 // https://yandex.com/dev/disk/doc/dg/reference/copy.html https://www.ietf.org/rfc/rfc4918.txt
 class WebDav
 {
@@ -130,7 +131,6 @@ class WebDav
     protected $res_body = null;
 
     public $isSend = false;
-    public $maxUploadSize = 0; // 0 无限制, 217483648 2GB
     public $prefix = ''; //要从WebDAV资源路径中删除的URL路径前缀
 
     /**
@@ -359,7 +359,7 @@ class WebDav
     protected function stripPrefix($srcPath)
     {
         if (!$this->file->isValid($srcPath)) {
-            throw new Exception('Unsupported', self::STATUS_CODE_502);
+            throw new \Exception('Unsupported', self::STATUS_CODE_502);
         }
         if ($this->prefix === '') {
             return $srcPath === '' ? '/' : $srcPath;
@@ -369,7 +369,7 @@ class WebDav
         if (strlen($path) < strlen($srcPath)) {
             return $path === '' ? '/' : $path;
         }
-        throw new Exception('prefix mismatch', self::STATUS_CODE_404);
+        throw new \Exception('prefix mismatch', self::STATUS_CODE_404);
     }
 
     public function setResCode($code)
@@ -405,7 +405,7 @@ class WebDav
         if (method_exists($this, $method)) {
             try {
                 call_user_func(array($this, $method));
-            } catch (Exception $e) {
+            } catch (\Exception $e) {
                 $code = $e->getCode();
                 $this->setResCode($code ? $code : self::STATUS_CODE_500);
 
@@ -531,7 +531,7 @@ class WebDav
     /**
      * 获取文件
      * GET /path
-     * @throws Exception
+     * @throws \Exception
      */
     protected function handleGet()
     {
@@ -651,20 +651,20 @@ class WebDav
     /**
      * 创建上传
      * POST /files
-     * @throws Exception
+     * @throws \Exception
      */
     protected function handlePost()
     {
         if (!empty($_GET['name'])) { //有普通方式上传文件 模拟put
             $name = $_GET['name'];
             if (!isset($_FILES[$name])) {
-                throw new Exception('未选择上传文件', self::STATUS_CODE_400);
+                throw new \Exception('未选择上传文件', self::STATUS_CODE_400);
             }
             if ($_FILES[$name]['error'] > 0) {
-                throw new Exception('上传失败:' . $_FILES[$name]['error'], self::STATUS_CODE_400);
+                throw new \Exception('上传失败:' . $_FILES[$name]['error'], self::STATUS_CODE_400);
             }
             if (!self::isValidName($_FILES[$name]['name'])) {
-                throw new Exception('文件名无效', self::STATUS_CODE_400);
+                throw new \Exception('文件名无效', self::STATUS_CODE_400);
             }
 
             $this->customInStream = $_FILES[$name]['tmp_name']; //上传数据
@@ -672,7 +672,7 @@ class WebDav
             $this->req_header['Content-Length'] = $_FILES[$name]['size'];
             $this->reqPath = $this->getReqPath() . '/' . $_FILES[$name]['name'];
             if ($this->file->exists($this->reqPath)) {
-                throw new Exception('文件已存在', self::STATUS_CODE_400);
+                throw new \Exception('文件已存在', self::STATUS_CODE_400);
             }
             $this->handlePut($this->reqPath);
             return $this->setResCode(self::STATUS_CODE_200);
@@ -705,7 +705,7 @@ class WebDav
      * 上传文件
      * Put /path
      * @param string $reqPath
-     * @throws Exception
+     * @throws \Exception
      */
     protected function handlePut($reqPath = '')
     {
@@ -729,7 +729,7 @@ class WebDav
     /**
      *
      * MKCOL /path
-     * @throws Exception
+     * @throws \Exception
      */
     protected function handleMkcol()
     {
@@ -741,7 +741,7 @@ class WebDav
     /**
      *
      * COPY /path
-     * @throws Exception
+     * @throws \Exception
      */
     protected function handleCopy()
     {
@@ -751,7 +751,7 @@ class WebDav
     /**
      *
      * MOVE /path
-     * @throws Exception
+     * @throws \Exception
      */
     protected function handleMove()
     {
@@ -783,7 +783,7 @@ class WebDav
     /**
      *
      * LOCK /path
-     * @throws Exception
+     * @throws \Exception
      */
     protected function handleLock()
     {
@@ -817,7 +817,7 @@ class WebDav
     /**
      *
      * UNLOCK /path
-     * @throws Exception
+     * @throws \Exception
      */
     protected function handleUnlock()
     {
@@ -878,7 +878,7 @@ class WebDav
     /**
      * 目录列表
      * PROPFIND /path
-     * @throws Exception
+     * @throws \Exception
      */
     protected function handlePropfind()
     {
@@ -913,7 +913,7 @@ class WebDav
     /**
      * 修改文件或目录属性
      * PROPPATCH /path
-     * @throws Exception
+     * @throws \Exception
      */
     protected function handleProppatch()
     {

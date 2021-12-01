@@ -1,0 +1,24 @@
+{
+    "name": "myphps/webdav",
+    "description": "webdav服务",
+    "license": "MIT",
+    "keywords": ["myphp"],
+    "homepage": "https://github.com/ncwsky/webdav",
+    "minimum-stability": "dev",
+    "authors": [
+        {
+            "name": "路人",
+            "email": "ep1086@qq.com",
+            "homepage": "https://github.com/ncwsky/myphp",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": ">=5.4.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "WebDav\\": "src/"
+        }
+    }
+}
