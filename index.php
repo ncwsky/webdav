@@ -1,8 +1,8 @@
 <?php
 require __DIR__ . '/MyLoader.php';
+
 MyLoader::$rootPath = __DIR__;
-//MyLoader::$namespaceMap = ['WebDav\\' => 'src/'];
-MyLoader::$classMap = [__DIR__ . '/src' => 1];
+MyLoader::$namespaceMap = ['WebDav\\' => 'src/'];
 
 use WebDav\WebDav;
 use WebDav\WebDavFile;
