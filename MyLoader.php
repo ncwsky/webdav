@@ -21,22 +21,24 @@ class MyLoader
     //自动加载对象
     public static function autoload($class_name)
     {
-        if (isset(self::$classList[$class_name])) return true;
+        if (isset(self::$classList[$class_name])) return self::$classList[$class_name];
 
         if (isset(self::$classMap[$class_name])) { //优先加载类映射
             return self::load($class_name, self::$classMap[$class_name], true);
         }
 
         $class_path = strtr($class_name, '\\', '/');
-        $namespace = strstr($class_name, '\\', true);
-        $separator = $class_path[0] == '/' ? '' : '/';
-        if ($namespace) $namespace .= '\\';
-        if ($namespace && isset(self::$namespaceMap[$namespace])) { //优先加载类映射
-            return self::load($class_name, self::$rootPath . DIRECTORY_SEPARATOR . self::$namespaceMap[$namespace] . substr($class_path, strlen($namespace)) . '.php', true);
+        $pos = strpos($class_name, '\\'); //strstr($class_name, '\\', true);
+        if ($pos) {
+            $namespace = substr($class_name, 0, $pos + 1);
+            if (isset(self::$namespaceMap[$namespace])) { //优先加载类映射
+                return self::load($class_name, self::$rootPath . DIRECTORY_SEPARATOR . self::$namespaceMap[$namespace] . substr($class_path, strlen($namespace)) . '.php', true);
+            }
         }
 
+        $separator = $class_path[0] == '/' ? '' : '/';
         $path = self::$rootPath . $separator . $class_path;
-        //命名空间类加载 仿psr4
+        //命名空间类加载
         if ($pos = strrpos($class_path, '/')) {
             if (self::load($class_name, $path . '.php')) {
                 return true;
@@ -55,6 +57,7 @@ class MyLoader
                 }
             }
         }
+        self::$classList[$class_name] = false;
 
         return false;
     }
@@ -62,7 +65,7 @@ class MyLoader
     public static function load($class_name, $path, $map = false)
     {
         if (is_file($path)) {
-            require_once($path);
+            require $path;
             self::$classList[$class_name] = true;
             return true;
         }
