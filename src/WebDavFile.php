@@ -51,6 +51,11 @@ class WebDavFile extends WebDavFileAbstract
         return strncmp($realpath, $real_dir, strlen($real_dir)) === 0;
     }
 
+    public function space($path)
+    {
+        return ['free' => disk_free_space($this->dir . $path), 'total' => disk_total_space($this->dir . $path)];
+    }
+
     /**
      * @param resource|string $path
      * @return array|false|mixed
@@ -203,7 +208,7 @@ class WebDavFile extends WebDavFileAbstract
 
     public function open($path, $mode)
     {
-        if(is_dir($this->dir . $path)) return false;
+        if (is_dir($this->dir . $path)) return false;
         return fopen($this->dir . $path, $mode);
     }
 
@@ -212,18 +217,18 @@ class WebDavFile extends WebDavFileAbstract
         return fclose($fp);
     }
 
-    public function depth($path, $infinity = false, $search='')
+    public function depth($path, $infinity = false, $search = '')
     {
         $fullPath = $this->dir . rtrim($path, '/');
         $stat = stat($fullPath);
         $list = [];//new SplFixedArray($this->limit);
-        $list[0] = ['path'=>$path, 'is_dir'=>true, 'size'=>$stat['size'], 'mtime'=>$stat['mtime'], 'ctime'=>$stat['ctime'], 'type'=>''];
+        $list[0] = ['path' => $path, 'is_dir' => true, 'size' => $stat['size'], 'mtime' => $stat['mtime'], 'ctime' => $stat['ctime'], 'type' => ''];
         $num = 1;
         $this->depthRecursive($list, $num, $fullPath, $infinity, $search);
         return $list;
     }
 
-    protected function depthRecursive(&$list, &$num, $path, $infinity = false, $search='')
+    protected function depthRecursive(&$list, &$num, $path, $infinity = false, $search = '')
     {
         if (($directory = opendir($path)) === false) {
             return;
@@ -236,7 +241,7 @@ class WebDavFile extends WebDavFileAbstract
             $isDir = is_dir($fullPath);
 
             if ($search === '' || stripos($file, $search) !== false) {
-                $list[$num] = ['path'=>substr($fullPath, $this->dirLen), 'is_dir'=>$isDir, 'size'=>$stat['size'], 'mtime'=>$stat['mtime'], 'ctime'=>$stat['ctime'], 'type'=>$isDir ? '' : mime_content_type($fullPath)];
+                $list[$num] = ['path' => substr($fullPath, $this->dirLen), 'is_dir' => $isDir, 'size' => $stat['size'], 'mtime' => $stat['mtime'], 'ctime' => $stat['ctime'], 'type' => $isDir ? '' : mime_content_type($fullPath)];
                 $num++;
             }
 

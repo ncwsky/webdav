@@ -429,7 +429,7 @@ class WebDav
             $this->setResHeader('Content-Type', 'text/plain; charset=utf-8');
         }
 
-        $this->log('res', $this->res_code, self::$httpCodeStatus[$this->res_code], $this->res_header, is_scalar($this->res_body) ? substr($this->res_body, 0, 50) : self::json($this->res_body), PHP_EOL);
+        $this->log('res', $this->res_code, self::$httpCodeStatus[$this->res_code], $this->res_header, is_scalar($this->res_body) ? substr($this->res_body, 0, 100) : self::json($this->res_body), PHP_EOL);
 
         if ($this->isSend === false) return [$this->res_code, $this->res_header, $this->res_body];
 
@@ -842,13 +842,13 @@ class WebDav
             $dResponse .= '<D:response>
         <D:href>' . $this->prefix . $item['path'] . '</D:href>
         <D:propstat>
+            <D:status>' . $this->protocol . ' 200 OK</D:status>
             <D:prop>
                 <D:displayname>' . basename($item['path']) . '</D:displayname>
                 <D:creationdate>' . gmdate('D, d M Y H:i:s', $item['ctime']) . ' GMT' . '</D:creationdate>
                 <D:getlastmodified>' . gmdate('D, d M Y H:i:s', $item['mtime']) . ' GMT' . '</D:getlastmodified>
-                ' . ($item['is_dir'] ? '<D:resourcetype><D:collection/></D:resourcetype>' : '<D:getcontenttype>' . $item['type'] . '</D:getcontenttype><D:getcontentlength>' . $item['size'] . '</D:getcontentlength><D:resourcetype/><D:getetag>'.sprintf("%x%x", $item['mtime'], $item['size']).'</D:getetag>') . '
+                ' . ($item['is_dir'] ? '<D:resourcetype><D:collection/></D:resourcetype>' : '<D:getcontenttype>' . $item['type'] . '</D:getcontenttype><D:resourcetype/><D:getcontentlength>' . $item['size'] . '</D:getcontentlength><D:getetag>'.sprintf("%x%x", $item['mtime'], $item['size']).'</D:getetag>') . '
             </D:prop>
-            <D:status>' . $this->protocol . ' 200 OK</D:status>
         </D:propstat>
     </D:response>';
         }
@@ -860,19 +860,31 @@ class WebDav
         return '<D:response>
         <D:href>' . $this->prefix . $path . '</D:href>
         <D:propstat>
+            <D:status>' . $this->protocol . ' ' . $code . ' ' . (isset(self::$httpCodeStatus[$code]) ? self::$httpCodeStatus[$code] : 'Unknown').'</D:status>
             <D:prop>
                 <D:displayname>' . basename($path) . '</D:displayname>
             </D:prop>
-            <D:status>' . $this->protocol . ' ' . $code . ' ' . (isset(self::$httpCodeStatus[$code]) ? self::$httpCodeStatus[$code] : 'Unknown').'</D:status>
+        </D:propstat>
+    </D:response>';
+    }
+    protected function xmlDResponseSpace($path, $available, $used){
+        return '<D:response>
+        <D:href>' . $this->prefix . $path . '</D:href>
+        <D:propstat>
+            <D:status>' . $this->protocol . ' 200 OK</D:status>
+            <D:prop>
+                <d:quota-available-bytes>'.$available.'</d:quota-available-bytes>
+                <d:quota-used-bytes>'.$used.'</d:quota-used-bytes>
+            </D:prop>
         </D:propstat>
     </D:response>';
     }
 
     protected function xmlDMultistatus($dResponse){
-        return $this->xmlVersion().'<D:multistatus xmlns:D="DAV:">'.$dResponse.'</D:multistatus>';
+        return $this->xmlVersion()."\n".'<D:multistatus xmlns:D="DAV:">'."\n".$dResponse.'</D:multistatus>';
     }
     protected function xmlVersion(){
-        $this->setResHeader('Content-Type', 'text/xml; charset=utf-8');
+        $this->setResHeader('Content-Type', 'application/xml; charset=utf-8');
         return '<?xml version="1.0" encoding="UTF-8"?>';
     }
     /**
@@ -900,12 +912,30 @@ class WebDav
             //$this->res_body = $this->xmlDMultistatus($this->xmlDResponseFail($this->reqPath, self::STATUS_CODE_404));
         }
         $isDir = $this->file->isDir($this->reqPath);
+        $this->setResCode(self::STATUS_CODE_207);
+        if ($depth == '0' && $isDir) {
+            $rawBody = file_get_contents($this->inStream());
+            /*
+            <D:propfind xmlns:D="DAV:">
+              <D:prop>
+                <D:quota-available-bytes/>
+                <D:quota-used-bytes/>
+              </D:prop>
+            </D:propfind>*/
+            if (strpos($rawBody, 'quota-available-bytes')) {
+                $space = $this->file->space($this->reqPath);
+                $available = $space['free'];
+                $used = $space['total'] - $available;
+                $this->res_body = $this->xmlDMultistatus($this->xmlDResponseSpace($this->reqPath, $available, $used));
+                $this->setResHeader('Content-Length', strlen($this->res_body));
+                return null;
+            }
+        }
         if ($depth == '0' || !$isDir) {
             $list = [['path'=>$this->reqPath, 'is_dir'=>$isDir, 'size'=>$stat['size'], 'mtime'=>$stat['mtime'], 'ctime'=>$stat['ctime'], 'type'=>$isDir ? '' : 'application/octet-stream']];
         } else {
             $list = $this->file->depth($this->reqPath, $depth == 'infinity');
         }
-        $this->setResCode(self::STATUS_CODE_207);
         $this->res_body = $this->xmlDMultistatus($this->xmlDResponse($list));
         //$this->setResHeader('Content-Length', strlen($this->res_body));
     }

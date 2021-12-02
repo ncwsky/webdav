@@ -14,6 +14,13 @@ interface WebDavFileInterface
     public function isValid($path);
 
     /**
+     * 返回可用空间总空间大小字节数
+     * @param $path
+     * @return array ['free'=>0,'total'=>0]
+     */
+    public function space($path);
+
+    /**
      * 给出文件的信息
      * @param resource|string $path
      * @return mixed
@@ -41,7 +48,7 @@ interface WebDavFileInterface
      * @param bool $copy
      * @return mixed
      */
-    public function copyMove($old, $new, $copy=false);
+    public function copyMove($old, $new, $copy = false);
 
     /**
      * 创建一层目录
