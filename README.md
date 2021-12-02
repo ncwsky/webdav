@@ -28,6 +28,8 @@
 >推荐使用:[RaiDrive](https://www.raidrive.com/download), 更强大,兼容性更好.
 >首次使用需要取消上传及http限制,下载此文件后双击运行 [webdav.bat](./webdav.bat); 
 
+>直接使用cmd命令： net use 盘符或* http://webdav地址
+
 >Mac: 右键finder —— 连接服务器 —— 粘贴上述webdav地址,点击连接 —— 输入账号密码即可
 >其他客户端及系统: 明确地址为上述webdav地址,账号密码为自己登陆账号即可，基本流程类似 
 >Android,iOS移动端设备推荐:[ES文件浏览器](http://www.estrongs.com)
