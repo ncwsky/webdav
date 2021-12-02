@@ -789,10 +789,12 @@ class WebDav
     {
         $this->reqPath = $this->getReqPath();
         //todo 锁 关联uuid
+        /*
         if(!$this->file->lock($this->reqPath)){
             $this->setResCode(self::STATUS_CODE_423);
         }
         $this->file->unlock($this->reqPath);
+        */
 
         $rawBody = file_get_contents($this->inStream());
         //$rawBody = str_replace(['xmlns:D="DAV:"','D:'],['','D-'], $rawBody); //去掉xml的命名空间
