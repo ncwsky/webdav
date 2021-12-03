@@ -37,7 +37,7 @@ class WebDavFile extends WebDavFileAbstract
     {
         $this->dir = realpath($davPath);
         $this->dirLen = strlen($this->dir);
-        $this->tempDir = $this->dir . '/' . self::TMP_DIR_NAME;
+        $this->tempDir = $this->dir . DIRECTORY_SEPARATOR . self::TMP_DIR_NAME;
         if (!is_dir($this->dir)) mkdir($this->dir, 0755, true);
         //if (!is_dir($this->tempDir)) mkdir($this->tempDir, 0755); //todo
     }
@@ -299,7 +299,7 @@ class WebDavFile extends WebDavFileAbstract
 
         while (($file = readdir($directory)) !== false) {
             if ($file === '.' || $file === '..') continue;
-            $fullPath = $path . '/' . $file;
+            $fullPath = $path . DIRECTORY_SEPARATOR . $file;
             if (is_dir($fullPath)) {
                 $this->delRecursive($fullPath);
             } else {
