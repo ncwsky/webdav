@@ -107,21 +107,21 @@ class WebDav
 
     //可浏览器渲染的MIME类型
     public static $mimeTypeInline = [
-        "text/plain" => 1,
-        "image/png" => 1,
-        "image/jpeg" => 1,
-        "image/gif" => 1,
-        "image/bmp" => 1,
-        "image/webp" => 1,
-        "audio/wave" => 1,
-        "audio/wav" => 1,
-        "audio/x-wav" => 1,
-        "audio/x-pn-wav" => 1,
-        "audio/webm" => 1,
-        "video/webm" => 1,
-        "audio/ogg" => 1,
-        "video/ogg " => 1,
-        "application/ogg" => 1,
+        "text/plain" => true,
+        "image/png" => true,
+        "image/jpeg" => true,
+        "image/gif" => true,
+        "image/bmp" => true,
+        "image/webp" => true,
+
+        "audio/mpeg" => true,
+        "audio/ogg" => true,
+        "audio/wav" => true,
+
+        "audio/webm" => true,
+        "video/webm" => true,
+
+        "video/ogg " => true,
     ];
 
     protected $protocol = '';
@@ -283,6 +283,56 @@ class WebDav
             .substr($uuid,16, 4).'-'
             .substr($uuid,20,12);
     }
+
+    // 简要的mime_type类型
+    public static function minMimeType($filename)
+    {
+        static $mimeType = array(
+            'bmp' => 'image/bmp',
+            'gif' => 'image/gif',
+            'jpe' => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'jpg' => 'image/jpeg',
+            'png' => 'image/png',
+            'webp' => 'image/webp',
+            'ico' => 'image/x-icon',
+
+            'aac' => 'audio/aac',
+            'mp3' => 'audio/mpeg',
+            'wav' => 'audio/x-wav',
+            'ogg' => 'audio/ogg',
+
+            'avi' => 'video/x-msvideo',
+            'mp4' => 'video/mp4',
+            'mpeg' => 'video/mpeg',
+            'ogv' => 'video/ogg',
+            'webm' => 'video/webm',
+            'flv' => 'video/x-flv',
+
+            'txt' => 'text/plain',
+            'csv' => 'text/csv',
+            'xml' => 'application/xml',
+            'pdf' => 'application/pdf',
+            'doc' => 'application/msword',
+            'ppt' => 'application/vnd.ms-powerpoint',
+            'xls' => 'application/vnd.ms-excel',
+            'xlt' => 'application/vnd.ms-excel',
+
+            'tar' => 'application/x-tar',
+            '7z' => 'application/x-7z-compressed',
+            'rar' => 'application/x-rar-compressed',
+            'zip' => 'application/zip',
+        );
+        $mime = 'application/octet-stream';
+        $pos = strrpos($filename, '.');
+        if (!$pos) return $mime;
+        $type = strtolower(substr($filename, $pos + 1));
+        if (isset($mimeType[$type])) {
+            $mime = $mimeType[$type];
+        }
+        return $mime;
+    }
+
     //名称是否有效
     public static function isValidName($name)
     {
@@ -312,7 +362,7 @@ class WebDav
         file_put_contents($this->logFile, "[" . date("Y-m-d H:i:s").'.'.substr(microtime(), 2,3) . "]" . (is_scalar($content) ? $content : self::json($content)) . "\n", FILE_APPEND);
     }
 
-    public function getReqHeader($name = null, $default = null)
+    public function getReqHeader($header_name = null, $default = null)
     {
         if ($this->req_header === null) {
             if (function_exists('getallheaders')) {
@@ -339,15 +389,15 @@ class WebDav
             }
         }
 
-        if ($name === null) return $this->req_header;
-        if (is_array($name)) {
+        if ($header_name === null) return $this->req_header;
+        if (is_array($header_name)) {
             $values = [];
-            foreach ($name as $item) {
+            foreach ($header_name as $item) {
                 $values[$item] = isset($this->req_header[$item]) ? $this->req_header[$item] : $default;
             }
             return $values;
         }
-        return isset($this->req_header[$name]) ? $this->req_header[$name] : $default;
+        return isset($this->req_header[$header_name]) ? $this->req_header[$header_name] : $default;
     }
 
     public function getReqPath()
@@ -443,10 +493,20 @@ class WebDav
             header($name . ': ' . $value);
         }
         if ($this->res_body instanceof \Closure) {
-            call_user_func($this->res_body);
+            $res = call_user_func($this->res_body);
+            if ($res instanceof WebDavReadFile) {
+                $fp = fopen($res->file, 'rb');
+                $out = fopen('php://output','wb');
+                stream_copy_to_stream($fp, $out, $res->size, $res->offset);
+                fclose($fp);
+                fclose($out);
+                return null;
+            } else {
+                echo $res;
+            }
         } elseif ($this->res_body !== null) {
             $out = fopen('php://output', 'w');
-            stream_set_chunk_size($out, $this->file->chunkSize);
+            //stream_set_chunk_size($out, $this->file->chunkSize);
             fwrite($out, is_scalar($this->res_body) ? $this->res_body : self::json($this->res_body));
             fclose($out);
             //echo is_scalar($this->res_body) ? $this->res_body : self::json($this->res_body);
@@ -574,8 +634,7 @@ class WebDav
             return $this->setResCode(self::STATUS_CODE_200);
         }
 
-        $fp = $this->file->open($this->reqPath, 'r');
-        if (!$fp) {
+        if (!$this->file->isFile($this->reqPath)) {
             return $this->setResCode(self::STATUS_CODE_502);
         }
         $etag = sprintf('%x%x', $stat['mtime'], $stat['size']);
@@ -584,24 +643,25 @@ class WebDav
         $this->setResHeader('Last-Modified', gmdate('D, d M Y H:i:s', $stat['mtime']) . ' GMT');
 
         if (isset($_GET['down'])) { //stripos($this->getReqHeader('User-Agent'), 'dav') === false
-            $contentType = $this->file->type($this->reqPath);
-            //$disposition = (isset(self::$mimeTypeInline[$contentType]) ? 'inline' : 'attachment') . ';filename="' . basename($this->reqPath) . '"';
+            $contentType = self::minMimeType($this->reqPath);
+            $this->setResHeader('Accept-Ranges', 'bytes');
             $this->setResHeader('Content-Type', $contentType);
             $this->setResHeader('Content-Disposition', 'attachment; filename="' . basename($this->reqPath) . '"');
+            //$this->setResHeader('Content-Disposition', (isset(self::$mimeTypeInline[$contentType]) ? 'inline' : 'attachment') . ';filename="' . basename($this->reqPath) . '"');
         }
 
         $offset = 0;
-        $readSize = -1; //读取的大小
+        $readSize = $stat['size']; //读取的大小
         $endOffset = $stat['size'] - 1;
-        $range = $this->getReqHeader('HTTP_RANGE');
+        $range = $this->getReqHeader('Range'); //bytes=0-5  bytes=-1  bytes=500-
         if ($range) {
-            $ranges = explode('-', substr($_SERVER['HTTP_RANGE'], 6));
+            $ranges = explode('-', substr($range, 6));
             $offset = (int)$ranges[0];
             if ($offset < 0 || $offset > $stat['size']) {
                 return $this->setResCode(self::STATUS_CODE_416);
             }
             if ($ranges[1] !== '') {
-                $endOffset = (int)$ranges[0];
+                $endOffset = (int)$ranges[1];
                 if ($endOffset < 0 || $endOffset > $stat['size']) {
                     return $this->setResCode(self::STATUS_CODE_416);
                 }
@@ -612,16 +672,15 @@ class WebDav
             $this->setResHeader('Content-Length', $readSize);
             $this->setResCode(self::STATUS_CODE_206);
         } else {
-            $this->setResHeader('Content-Length', $stat['size']);
+            $this->setResHeader('Content-Length', $readSize);
             $this->setResCode(self::STATUS_CODE_200);
         }
         $this->setResHeader('Content-Type', $this->file->type($this->reqPath));
 
-        //todo 大文件读取优化
-        $this->res_body = function () use($fp, $offset, $readSize){
-            $out = fopen('php://output', 'w');
-            $this->file->put($out, $fp, $offset, $readSize);
-            fclose($out);
+        //文件读取
+        $this->res_body = function () use($offset, $readSize){
+            if ($readSize == 0) return '';
+            return $this->file->output($this->reqPath, $offset, $readSize);
         };
     }
 

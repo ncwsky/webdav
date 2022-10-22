@@ -1,7 +1,7 @@
 <?php
 namespace WebDav;
 /**
- * 文件存储定义
+ * 文件存储定义  可使用stream_wrapper_register自定义文件处理协议
  * Interface WebDavFileInterface
  */
 interface WebDavFileInterface
@@ -61,6 +61,12 @@ interface WebDavFileInterface
      * @param $path
      * @return bool
      */
+    public function isFile($path);
+
+    /**
+     * @param $path
+     * @return bool
+     */
     public function isDir($path);
 
     /**
@@ -106,13 +112,12 @@ interface WebDavFileInterface
 
     /**
      * 输出文件到$out
-     * @param resource $out
-     * @param resource $fp
+     * @param string $path 文件路径
      * @param int $offset 读取偏移 0不限制
      * @param int $size 读取大小 -1不限制
-     * @return void
+     * @return string|WebDavReadFile
      */
-    public function put($out, $fp, $offset = 0, $size = -1);
+    public function output($path, $offset = 0, $size = -1);
 
     /**
      * @param $path

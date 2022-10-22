@@ -201,6 +201,11 @@ class WebDavFile extends WebDavFileAbstract
         return 201;
     }
 
+    public function isFile($path)
+    {
+        return is_file($this->dir . $path);
+    }
+
     public function isDir($path)
     {
         return is_dir($this->dir . $path);
@@ -277,10 +282,15 @@ class WebDavFile extends WebDavFileAbstract
         return $bytes;
     }
 
-    public function put($out, $fp, $offset = 0, $size = -1)
+    public function output($path, $offset = 0, $size = -1)
     {
+        return new WebDavReadFile($this->dir . $path, $offset, $size);
+        $out = fopen('php://output', 'wb');
+        $fp = fopen($this->dir . $path, 'rb');
         stream_copy_to_stream($fp, $out, $size, $offset);
         fclose($fp);
+        fclose($out);
+        return null;
     }
 
     public function delete($path)
