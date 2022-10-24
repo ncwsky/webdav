@@ -76,6 +76,7 @@ class WebDavFile extends WebDavFileAbstract
 
     public function type($path)
     {
+        return WebDav::minMimeType($path);
         return mime_content_type($this->dir . $path);
     }
 

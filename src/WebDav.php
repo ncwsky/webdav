@@ -128,6 +128,9 @@ class WebDav
     protected $req_header = null;
     protected $res_header = [];
     protected $res_code = self::STATUS_CODE_200;
+    /**
+     * @var string|WebDavReadFile|null
+     */
     protected $res_body = null;
 
     public $isSend = false;
@@ -486,25 +489,24 @@ class WebDav
         if (headers_sent()) {
             return null;
         }
-
+        //输出header
         header($this->protocol . ' ' . $this->res_code . ' ' . self::$httpCodeStatus[$this->res_code]);
-
         foreach ($this->res_header as $name => $value) {
             header($name . ': ' . $value);
         }
+        //输出内容
         if ($this->res_body instanceof \Closure) {
-            $res = call_user_func($this->res_body);
-            if ($res instanceof WebDavReadFile) {
-                $fp = fopen($res->file, 'rb');
-                $out = fopen('php://output','wb');
-                stream_copy_to_stream($fp, $out, $res->size, $res->offset);
-                fclose($fp);
-                fclose($out);
-                return null;
-            } else {
-                echo $res;
-            }
-        } elseif ($this->res_body !== null) {
+            $this->res_body = call_user_func($this->res_body);
+        }
+        if ($this->res_body instanceof WebDavReadFile) {
+            $fp = fopen($this->res_body->file, 'rb');
+            $out = fopen('php://output', 'wb');
+            stream_copy_to_stream($fp, $out, $this->res_body->size, $this->res_body->offset);
+            fclose($fp);
+            fclose($out);
+            return null;
+        }
+        if ($this->res_body !== null) {
             $out = fopen('php://output', 'w');
             //stream_set_chunk_size($out, $this->file->chunkSize);
             fwrite($out, is_scalar($this->res_body) ? $this->res_body : self::json($this->res_body));
@@ -602,7 +604,9 @@ class WebDav
             return $this->setResCode(self::STATUS_CODE_404);
         }
 
-        if ($this->file->isDir($this->reqPath)) {
+        if ($this->file->isDir($this->reqPath)) { //网页模式显示目录下的文件列表
+            // name_asc,name_desc | mtime_asc,mtime_desc | size_asc,size_desc
+            $sortBy = isset($_GET['sort']) ? trim($_GET['sort']) : 'name_asc';
             $search = isset($_GET['search']) ? trim($_GET['search']) : '';
             $list = $this->file->depth($this->reqPath, $search!=='', $search); //有搜索递归
             //取路径层次
@@ -620,12 +624,65 @@ class WebDav
             if ($this->dirGetCallBack) {
                 $this->res_body = call_user_func($this->dirGetCallBack, $list, $pathList);
             } else {
-                $data = [];
+                array_shift($list);
                 foreach ($list as $k => $v) {
-                    $data[$v['is_dir'] . '_' . $v['path']] = $v;
+                    $list[$k]['name'] = basename($v['path']);
                 }
-                unset($list);
-                ksort($data, SORT_STRING | SORT_FLAG_CASE); //文件名排序
+
+                $array_column = function ($array, $column) {
+                    if (function_exists('array_column')) {
+                        return array_column($array, $column);
+                    } else {
+                        $columns = [];
+                        foreach ($array as $element) {
+                            $columns[] = $element[$column];
+                        }
+                    }
+                };
+
+                switch ($sortBy) {
+                    case 'name_desc':
+                        $keys = ['is_dir', 'name'];
+                        $direction = [SORT_ASC, SORT_DESC];
+                        $sortFlag = [SORT_REGULAR, SORT_STRING | SORT_FLAG_CASE];
+                        break;
+                    case 'mtime_asc':
+                        $keys = ['is_dir', 'mtime', 'name'];
+                        $direction = [SORT_DESC, SORT_ASC, SORT_ASC];
+                        $sortFlag = [SORT_REGULAR, SORT_REGULAR, SORT_STRING | SORT_FLAG_CASE];
+                        break;
+                    case 'mtime_desc':
+                        $keys = ['is_dir', 'mtime', 'name'];
+                        $direction = [SORT_ASC, SORT_DESC, SORT_DESC];
+                        $sortFlag = [SORT_REGULAR, SORT_REGULAR, SORT_STRING | SORT_FLAG_CASE];
+                        break;
+                    case 'size_asc':
+                        $keys = ['is_dir', 'size', 'name'];
+                        $direction = [SORT_DESC, SORT_ASC, SORT_ASC];
+                        $sortFlag = [SORT_REGULAR, SORT_NUMERIC, SORT_STRING | SORT_FLAG_CASE];
+                        break;
+                    case 'size_desc':
+                        $keys = ['is_dir', 'size', 'name'];
+                        $direction = [SORT_ASC, SORT_DESC, SORT_ASC];
+                        $sortFlag = [SORT_REGULAR, SORT_NUMERIC, SORT_STRING | SORT_FLAG_CASE];
+                        break;
+                    default: //默认文件名升序
+                        $keys = ['is_dir', 'name'];
+                        $direction = [SORT_DESC, SORT_ASC];
+                        $sortFlag = [SORT_REGULAR, SORT_STRING | SORT_FLAG_CASE];
+
+                }
+                $args = [];
+                foreach ($keys as $i => $key) {
+                    $args[] = $array_column($list, $key);
+                    $args[] = $direction[$i];
+                    $args[] = $sortFlag[$i];
+                }
+                $args[] = range(1, count($list));
+                $args[] = SORT_ASC;
+                $args[] = SORT_NUMERIC;
+                $args[] = &$list;
+                call_user_func_array('array_multisort', $args);
 
                 ob_start();
                 include __DIR__ . "/WebDavGetList.php";
@@ -643,9 +700,8 @@ class WebDav
         $this->setResHeader('Last-Modified', gmdate('D, d M Y H:i:s', $stat['mtime']) . ' GMT');
 
         if (isset($_GET['down'])) { //stripos($this->getReqHeader('User-Agent'), 'dav') === false
-            $contentType = self::minMimeType($this->reqPath);
             $this->setResHeader('Accept-Ranges', 'bytes');
-            $this->setResHeader('Content-Type', $contentType);
+            $this->setResHeader('Content-Type', self::minMimeType($this->reqPath));
             $this->setResHeader('Content-Disposition', 'attachment; filename="' . basename($this->reqPath) . '"');
             //$this->setResHeader('Content-Disposition', (isset(self::$mimeTypeInline[$contentType]) ? 'inline' : 'attachment') . ';filename="' . basename($this->reqPath) . '"');
         }
@@ -678,10 +734,11 @@ class WebDav
         $this->setResHeader('Content-Type', $this->file->type($this->reqPath));
 
         //文件读取
-        $this->res_body = function () use($offset, $readSize){
+        $this->res_body = $readSize == 0 ? '' : $this->file->output($this->reqPath, $offset, $readSize);
+/*        function () use($offset, $readSize){
             if ($readSize == 0) return '';
             return $this->file->output($this->reqPath, $offset, $readSize);
-        };
+        };*/
     }
 
     /**
@@ -1033,220 +1090,5 @@ class WebDav
     protected function inStream()
     {
         return $this->customInStream === '' ? 'php://input' : $this->customInStream;
-    }
-}
-
-if( !function_exists ('mime_content_type')) {
-    /**
-    +----------------------------------------------------------
-     * 获取文件的mime_content类型
-    +----------------------------------------------------------
-     * @return string
-    +----------------------------------------------------------
-     */
-    function mime_content_type($filename)
-    {
-        static $contentType = array(
-            'ai'	=> 'application/postscript',
-            'aif'	=> 'audio/x-aiff',
-            'aifc'	=> 'audio/x-aiff',
-            'aiff'	=> 'audio/x-aiff',
-            'asc'	=> 'application/pgp', //changed by skwashd - was text/plain
-            'asf'	=> 'video/x-ms-asf',
-            'asx'	=> 'video/x-ms-asf',
-            'au'	=> 'audio/basic',
-            'avi'	=> 'video/x-msvideo',
-            'bcpio'	=> 'application/x-bcpio',
-            'bin'	=> 'application/octet-stream',
-            'bmp'	=> 'image/bmp',
-            'c'	=> 'text/plain', // or 'text/x-csrc', //added by skwashd
-            'cc'	=> 'text/plain', // or 'text/x-c++src', //added by skwashd
-            'cs'	=> 'text/plain', //added by skwashd - for C# src
-            'cpp'	=> 'text/x-c++src', //added by skwashd
-            'cxx'	=> 'text/x-c++src', //added by skwashd
-            'cdf'	=> 'application/x-netcdf',
-            'class'	=> 'application/octet-stream',//secure but application/java-class is correct
-            'com'	=> 'application/octet-stream',//added by skwashd
-            'cpio'	=> 'application/x-cpio',
-            'cpt'	=> 'application/mac-compactpro',
-            'csh'	=> 'application/x-csh',
-            'css'	=> 'text/css',
-            'csv'	=> 'text/comma-separated-values',//added by skwashd
-            'dcr'	=> 'application/x-director',
-            'diff'	=> 'text/diff',
-            'dir'	=> 'application/x-director',
-            'dll'	=> 'application/octet-stream',
-            'dms'	=> 'application/octet-stream',
-            'doc'	=> 'application/msword',
-            'dot'	=> 'application/msword',//added by skwashd
-            'dvi'	=> 'application/x-dvi',
-            'dxr'	=> 'application/x-director',
-            'eps'	=> 'application/postscript',
-            'etx'	=> 'text/x-setext',
-            'exe'	=> 'application/octet-stream',
-            'ez'	=> 'application/andrew-inset',
-            'gif'	=> 'image/gif',
-            'gtar'	=> 'application/x-gtar',
-            'gz'	=> 'application/x-gzip',
-            'h'	=> 'text/plain', // or 'text/x-chdr',//added by skwashd
-            'h++'	=> 'text/plain', // or 'text/x-c++hdr', //added by skwashd
-            'hh'	=> 'text/plain', // or 'text/x-c++hdr', //added by skwashd
-            'hpp'	=> 'text/plain', // or 'text/x-c++hdr', //added by skwashd
-            'hxx'	=> 'text/plain', // or 'text/x-c++hdr', //added by skwashd
-            'hdf'	=> 'application/x-hdf',
-            'hqx'	=> 'application/mac-binhex40',
-            'htm'	=> 'text/html',
-            'html'	=> 'text/html',
-            'ice'	=> 'x-conference/x-cooltalk',
-            'ics'	=> 'text/calendar',
-            'ief'	=> 'image/ief',
-            'ifb'	=> 'text/calendar',
-            'iges'	=> 'model/iges',
-            'igs'	=> 'model/iges',
-            'jar'	=> 'application/x-jar', //added by skwashd - alternative mime type
-            'java'	=> 'text/x-java-source', //added by skwashd
-            'jpe'	=> 'image/jpeg',
-            'jpeg'	=> 'image/jpeg',
-            'jpg'	=> 'image/jpeg',
-            'js'	=> 'application/x-javascript',
-            'kar'	=> 'audio/midi',
-            'latex'	=> 'application/x-latex',
-            'lha'	=> 'application/octet-stream',
-            'log'	=> 'text/plain',
-            'lzh'	=> 'application/octet-stream',
-            'm3u'	=> 'audio/x-mpegurl',
-            'man'	=> 'application/x-troff-man',
-            'me'	=> 'application/x-troff-me',
-            'mesh'	=> 'model/mesh',
-            'mid'	=> 'audio/midi',
-            'midi'	=> 'audio/midi',
-            'mif'	=> 'application/vnd.mif',
-            'mov'	=> 'video/quicktime',
-            'movie'	=> 'video/x-sgi-movie',
-            'mp3'	=> 'audio/mpeg',
-            'mp4'	=> 'video/mp4',
-            'mpe'	=> 'video/mpeg',
-            'mpeg'	=> 'video/mpeg',
-            'mpg'	=> 'video/mpeg',
-            'mpga'	=> 'audio/mpeg',
-            'ms'	=> 'application/x-troff-ms',
-            'msh'	=> 'model/mesh',
-            'mxu'	=> 'video/vnd.mpegurl',
-            'nc'	=> 'application/x-netcdf',
-            'oda'	=> 'application/oda',
-            'patch'	=> 'text/diff',
-            'pbm'	=> 'image/x-portable-bitmap',
-            'pdb'	=> 'chemical/x-pdb',
-            'pdf'	=> 'application/pdf',
-            'pgm'	=> 'image/x-portable-graymap',
-            'pgn'	=> 'application/x-chess-pgn',
-            'pgp'	=> 'application/pgp',//added by skwashd
-            'php'	=> 'application/x-httpd-php',
-            'php3'	=> 'application/x-httpd-php3',
-            'pl'	=> 'application/x-perl',
-            'pm'	=> 'application/x-perl',
-            'png'	=> 'image/png',
-            'pnm'	=> 'image/x-portable-anymap',
-            'po'	=> 'text/plain',
-            'ppm'	=> 'image/x-portable-pixmap',
-            'ppt'	=> 'application/vnd.ms-powerpoint',
-            'ps'	=> 'application/postscript',
-            'qt'	=> 'video/quicktime',
-            'ra'	=> 'audio/x-realaudio',
-            'rar'=>'application/octet-stream',
-            'ram'	=> 'audio/x-pn-realaudio',
-            'ras'	=> 'image/x-cmu-raster',
-            'rgb'	=> 'image/x-rgb',
-            'rm'	=> 'audio/x-pn-realaudio',
-            'roff'	=> 'application/x-troff',
-            'rpm'	=> 'audio/x-pn-realaudio-plugin',
-            'rtf'	=> 'text/rtf',
-            'rtx'	=> 'text/richtext',
-            'sgm'	=> 'text/sgml',
-            'sgml'	=> 'text/sgml',
-            'sh'	=> 'application/x-sh',
-            'shar'	=> 'application/x-shar',
-            'shtml'	=> 'text/html',
-            'silo'	=> 'model/mesh',
-            'sit'	=> 'application/x-stuffit',
-            'skd'	=> 'application/x-koan',
-            'skm'	=> 'application/x-koan',
-            'skp'	=> 'application/x-koan',
-            'skt'	=> 'application/x-koan',
-            'smi'	=> 'application/smil',
-            'smil'	=> 'application/smil',
-            'snd'	=> 'audio/basic',
-            'so'	=> 'application/octet-stream',
-            'spl'	=> 'application/x-futuresplash',
-            'src'	=> 'application/x-wais-source',
-            'stc'	=> 'application/vnd.sun.xml.calc.template',
-            'std'	=> 'application/vnd.sun.xml.draw.template',
-            'sti'	=> 'application/vnd.sun.xml.impress.template',
-            'stw'	=> 'application/vnd.sun.xml.writer.template',
-            'sv4cpio'	=> 'application/x-sv4cpio',
-            'sv4crc'	=> 'application/x-sv4crc',
-            'swf'	=> 'application/x-shockwave-flash',
-            'sxc'	=> 'application/vnd.sun.xml.calc',
-            'sxd'	=> 'application/vnd.sun.xml.draw',
-            'sxg'	=> 'application/vnd.sun.xml.writer.global',
-            'sxi'	=> 'application/vnd.sun.xml.impress',
-            'sxm'	=> 'application/vnd.sun.xml.math',
-            'sxw'	=> 'application/vnd.sun.xml.writer',
-            't'	=> 'application/x-troff',
-            'tar'	=> 'application/x-tar',
-            'tcl'	=> 'application/x-tcl',
-            'tex'	=> 'application/x-tex',
-            'texi'	=> 'application/x-texinfo',
-            'texinfo'	=> 'application/x-texinfo',
-            'tgz'	=> 'application/x-gtar',
-            'tif'	=> 'image/tiff',
-            'tiff'	=> 'image/tiff',
-            'tr'	=> 'application/x-troff',
-            'tsv'	=> 'text/tab-separated-values',
-            'txt'	=> 'text/plain',
-            'ustar'	=> 'application/x-ustar',
-            'vbs'	=> 'text/plain', //added by skwashd - for obvious reasons
-            'vcd'	=> 'application/x-cdlink',
-            'vcf'	=> 'text/x-vcard',
-            'vcs'	=> 'text/calendar',
-            'vfb'	=> 'text/calendar',
-            'vrml'	=> 'model/vrml',
-            'vsd'	=> 'application/vnd.visio',
-            'wav'	=> 'audio/x-wav',
-            'wax'	=> 'audio/x-ms-wax',
-            'wbmp'	=> 'image/vnd.wap.wbmp',
-            'wbxml'	=> 'application/vnd.wap.wbxml',
-            'wm'	=> 'video/x-ms-wm',
-            'wma'	=> 'audio/x-ms-wma',
-            'wmd'	=> 'application/x-ms-wmd',
-            'wml'	=> 'text/vnd.wap.wml',
-            'wmlc'	=> 'application/vnd.wap.wmlc',
-            'wmls'	=> 'text/vnd.wap.wmlscript',
-            'wmlsc'	=> 'application/vnd.wap.wmlscriptc',
-            'wmv'	=> 'video/x-ms-wmv',
-            'wmx'	=> 'video/x-ms-wmx',
-            'wmz'	=> 'application/x-ms-wmz',
-            'wrl'	=> 'model/vrml',
-            'wvx'	=> 'video/x-ms-wvx',
-            'xbm'	=> 'image/x-xbitmap',
-            'xht'	=> 'application/xhtml+xml',
-            'xhtml'	=> 'application/xhtml+xml',
-            'xls'	=> 'application/vnd.ms-excel',
-            'xlt'	=> 'application/vnd.ms-excel',
-            'xml'	=> 'application/xml',
-            'xpm'	=> 'image/x-xpixmap',
-            'xsl'	=> 'text/xml',
-            'xwd'	=> 'image/x-xwindowdump',
-            'xyz'	=> 'chemical/x-xyz',
-            'z'	=> 'application/x-compress',
-            'zip'	=> 'application/zip',
-        );
-        $type = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-        if (isset($contentType[$type])) {
-            $mime = $contentType[$type];
-        } else {
-            $mime = 'application/octet-stream';
-        }
-        return $mime;
     }
 }

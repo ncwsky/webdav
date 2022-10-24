@@ -78,10 +78,10 @@ $toByte = function($byte){
         </tr>
         </thead>
         <tbody id="fm-list">
-        <?php array_shift($data);foreach ($data as $item):$name = basename($item['path']);
+        <?php foreach ($list as $item):
         ?>
         <tr>
-          <td><?=$item['is_dir']?'<a href="'.$prefix.$item['path'].'"><span class="fm-name">'.$name.'</span></a>':'<span class="fm-name">'.$name.'</span>'?></td><td><?=date("Y/m/d H:i",$item['mtime'])?></td><td><?=$item['is_dir']?'':$toByte($item['size'])?></td>
+          <td><?=$item['is_dir']?'<a href="'.$prefix.$item['path'].'"><span class="fm-name">'.$item['name'].'</span></a>':'<span class="fm-name">'.$item['name'].'</span>'?></td><td><?=date("Y/m/d H:i",$item['mtime'])?></td><td><?=$item['is_dir']?'':$toByte($item['size'])?></td>
           <td>
               <?php if(!$item['is_dir']):?>
             <a href="<?=$prefix.$item['path']?>?down=1" target="_blank"><i class="bi bi-arrow-down-circle" title="下载"></i></a>
