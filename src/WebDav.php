@@ -157,6 +157,8 @@ class WebDav
 
     public $customInStream = ''; //指定自定上传资源路径
 
+    public $allowNotAuthRead = false; //允许无认证时读取
+
     /**
      * @var WebDavFile|WebDavFileInterface|null
      */
@@ -538,6 +540,10 @@ class WebDav
                 $this->res_body = '<div style="text-align: center;padding:1rem 0;font-size:1rem;"><a href="'.self::getSiteUrl().'">Login</a></div>';
                 return false;
             }
+            //允许读取
+            if ($this->allowNotAuthRead && in_array($method, ['Options', 'Get', 'Head', 'Propfind'])) {
+                return true;
+            }
             $this->setResHeader('WWW-Authenticate', $auth);
             $this->setResCode(self::STATUS_CODE_401);
             return false;
@@ -745,8 +751,8 @@ class WebDav
     }
 
     /**
-     * 检查上传的文件是否合法
-     * HEAD /files/{upload-key}
+     * 获取文件信息
+     * HEAD /path
      */
     protected function handleHead()
     {
