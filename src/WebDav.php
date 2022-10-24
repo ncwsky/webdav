@@ -541,9 +541,15 @@ class WebDav
                 return false;
             }
             //允许读取
-            if ($this->allowNotAuthRead && in_array($method, ['Options', 'Get', 'Head', 'Propfind'])) {
-                return true;
+            if ($this->allowNotAuthRead) {
+                if (in_array($method, ['Options', 'Get', 'Head', 'Propfind'])) {
+                    return true;
+                } else {
+                    $this->setResCode(self::STATUS_CODE_404);
+                    return false;
+                }
             }
+
             $this->setResHeader('WWW-Authenticate', $auth);
             $this->setResCode(self::STATUS_CODE_401);
             return false;
