@@ -627,6 +627,9 @@ class WebDav
                 array_shift($list);
                 foreach ($list as $k => $v) {
                     $list[$k]['name'] = basename($v['path']);
+                    if($list[$k]['name']=='$RECYCLE.BIN' || $list[$k]['name']=='System Volume Information'){
+                        unset($list[$k]);
+                    }
                 }
 
                 $array_column = function ($array, $column) {
