@@ -499,8 +499,7 @@ class WebDav
         //输出内容
         if ($this->res_body instanceof \Closure) {
             $this->res_body = call_user_func($this->res_body);
-        }
-        if ($this->res_body instanceof WebDavReadFile) {
+        } elseif ($this->res_body instanceof WebDavReadFile) {
             $fp = fopen($this->res_body->file, 'rb');
             $out = fopen('php://output', 'wb');
             stream_copy_to_stream($fp, $out, $this->res_body->size, $this->res_body->offset);
@@ -510,10 +509,8 @@ class WebDav
         }
         if ($this->res_body !== null) {
             $out = fopen('php://output', 'w');
-            //stream_set_chunk_size($out, $this->file->chunkSize);
             fwrite($out, is_scalar($this->res_body) ? $this->res_body : self::json($this->res_body));
             fclose($out);
-            //echo is_scalar($this->res_body) ? $this->res_body : self::json($this->res_body);
         }
     }
 
@@ -1105,5 +1102,12 @@ class WebDav
     protected function inStream()
     {
         return $this->customInStream === '' ? 'php://input' : $this->customInStream;
+    }
+}
+
+if (!function_exists('mime_content_type')) {
+    function mime_content_type($filename)
+    {
+        return WebDav::minMimeType($filename);
     }
 }
