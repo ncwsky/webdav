@@ -710,10 +710,9 @@ class WebDav
 
         $this->setResHeader('ETag', $etag);
         $this->setResHeader('Last-Modified', gmdate('D, d M Y H:i:s', $stat['mtime']) . ' GMT');
+        $this->setResHeader('Accept-Ranges', 'bytes');
 
         if (isset($_GET['down'])) { //stripos($this->getReqHeader('User-Agent'), 'dav') === false
-            $this->setResHeader('Accept-Ranges', 'bytes');
-            $this->setResHeader('Content-Type', self::minMimeType($this->reqPath));
             $this->setResHeader('Content-Disposition', 'attachment; filename="' . basename($this->reqPath) . '"');
             //$this->setResHeader('Content-Disposition', (isset(self::$mimeTypeInline[$contentType]) ? 'inline' : 'attachment') . ';filename="' . basename($this->reqPath) . '"');
         }
@@ -746,7 +745,7 @@ class WebDav
         $this->setResHeader('Content-Type', $this->file->type($this->reqPath));
 
         //文件读取
-        $this->res_body = $readSize == 0 ? '' : $this->file->output($this->reqPath, $offset, $readSize);
+        $this->res_body = $readSize == 0 ? null : $this->file->output($this->reqPath, $offset, $readSize);
 /*        function () use($offset, $readSize){
             if ($readSize == 0) return '';
             return $this->file->output($this->reqPath, $offset, $readSize);
