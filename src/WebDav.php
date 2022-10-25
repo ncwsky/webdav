@@ -272,6 +272,11 @@ class WebDav
         return isset($_SERVER['PHP_SELF']) ? $_SERVER['PHP_SELF'] : (isset($_SERVER['SCRIPT_NAME']) ? $_SERVER['SCRIPT_NAME'] : '');
     }
 
+    public static function getUri()
+    {
+        return isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : (isset($_SERVER['PHP_SELF']) ? $_SERVER['PHP_SELF'] : (isset($_SERVER['SCRIPT_NAME']) ? $_SERVER['SCRIPT_NAME'] : '')) . (empty($_SERVER['QUERY_STRING']) ? '' : '?' . $_SERVER['QUERY_STRING']);
+    }
+
     public static function cut($str, $s_flag, $e_flag, $offset=0, $case=true, &$pos_e=0){
         $pos_s = $case ? stripos($str, $s_flag, $offset) : strpos($str, $s_flag, $offset);
         if($pos_s===false) return '';
@@ -450,8 +455,6 @@ class WebDav
         set_time_limit(10240);
         $method = ucfirst(strtolower(self::getMethod()));
 
-        $this->log('req', $method, self::getPathInfo() , $this->getReqHeader(), PHP_EOL); //, $_SERVER
-
         if (!$this->middleware($method)) {
             return $this->response();
         }
@@ -516,6 +519,7 @@ class WebDav
 
     protected function middleware($method)
     {
+        $this->log('req', $method, self::getUri() , $this->getReqHeader(), PHP_EOL);
         //重置初始
         $this->protocol = isset($_SERVER['SERVER_PROTOCOL']) ? $_SERVER['SERVER_PROTOCOL'] : 'HTTP/1.0';
         $this->req_header = null;
