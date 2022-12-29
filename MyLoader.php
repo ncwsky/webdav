@@ -18,18 +18,6 @@ class MyLoader
         else self::$classDir[$dir] = 1;
     }
 
-    public static function namespace_map($namespace, $dir = null)
-    {
-        if (is_array($namespace)) self::$namespaceMap = array_merge(self::$namespaceMap, $namespace);
-        else self::$namespaceMap[$namespace] = $dir;
-    }
-
-    public static function class_map($name, $file = null)
-    {
-        if (is_array($name)) self::$classMap = array_merge(self::$classMap, $name);
-        else self::$classMap[$name] = $file;
-    }
-
     //自动加载对象
     public static function autoload($class_name)
     {
@@ -44,7 +32,7 @@ class MyLoader
             $namespace = substr($class_name, 0, $len); //包含尾部\
             if (isset(self::$namespaceMap[$namespace])) { //优先加载命名空间映射
                 $end = substr(self::$namespaceMap[$namespace], -1);
-                if (self::$namespaceMap[$namespace][0] == '/' || (DIRECTORY_SEPARATOR == '\\' && strpos(self::$namespaceMap[$namespace], ':\\'))) { //绝对路径 | win
+                if (self::$namespaceMap[$namespace][0] == '/' || (DIRECTORY_SEPARATOR == '\\' && strpos(self::$namespaceMap[$namespace], ':'))) { //绝对路径 | win
                     $path = self::$namespaceMap[$namespace];
                 } else {
                     $path = self::$rootPath . DIRECTORY_SEPARATOR . self::$namespaceMap[$namespace];
