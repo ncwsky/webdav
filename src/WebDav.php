@@ -698,7 +698,7 @@ class WebDav
                 $args[] = SORT_ASC;
                 $args[] = SORT_NUMERIC;
                 $args[] = &$list;
-                call_user_func_array('array_multisort', $args);
+                $list && call_user_func_array('array_multisort', $args);
 
                 ob_start();
                 include __DIR__ . "/WebDavGetList.php";
