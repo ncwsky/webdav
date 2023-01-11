@@ -308,8 +308,9 @@ class WebDav
             'ico' => 'image/x-icon',
 
             'aac' => 'audio/aac',
-            'mp3' => 'audio/mpeg',
-            'wav' => 'audio/x-wav',
+            'amr' => 'audio/amr',
+            'mp3' => 'audio/mpeg', //audio/mp3
+            'wav' => 'audio/x-wav', //audio/wav
             'ogg' => 'audio/ogg',
 
             'avi' => 'video/x-msvideo',
@@ -336,6 +337,9 @@ class WebDav
         $mime = 'application/octet-stream';
         $pos = strrpos($filename, '.');
         if (!$pos) return $mime;
+        if ($d = strpos($filename, '?')) {
+            $filename = substr($filename, 0, $d);
+        }
         $type = strtolower(substr($filename, $pos + 1));
         if (isset($mimeType[$type])) {
             $mime = $mimeType[$type];
